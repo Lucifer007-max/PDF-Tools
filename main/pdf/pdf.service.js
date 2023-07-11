@@ -83,6 +83,8 @@ async function convertHTMLToPDF(html, outputFolderPath) {
     throw new Error('Failed to convert HTML to PDF');
   }
 };
+
+
 async function convertPDFToJPG(pdfBuffer) {
   try {
     // Convert the PDF buffer to JPG
@@ -241,8 +243,30 @@ function captureImage(Webcam, options) {
   });
 };
 
+const {degrees} = require('pdf-lib');
+async function rotatePdf(file, degres) {
+  try {
+    // Read the PDF file
+    const pdfBuffer = fs.readFileSync(file.path);
+    const pdfDoc = await PDFDocument.load(pdfBuffer);
 
+    // Rotate the pages in the PDF document
+    const pages = pdfDoc.getPages();
+    for (const page of pages) {
+      // page.setRotation(degrees);
+      page.setRotation(degrees(degres));
+      // page.setRotation((degrees) || 90));
+    }
 
+    // Save the rotated PDF to a new buffer
+    const rotatedPdfBuffer = await pdfDoc.save();
+
+    return rotatedPdfBuffer;
+  } catch (error) {
+    console.log(error.message)
+    throw new Error('Failed to rotate PDF file');
+  }
+}
 
 
 
@@ -256,5 +280,6 @@ module.exports = {
   // convertToWord,
   generatePDF,
   convertToPDF,
-  addPageNumbersToPDF
+  addPageNumbersToPDF,
+  rotatePdf
 };

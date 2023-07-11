@@ -8,8 +8,8 @@ const router = express.Router();
 
 // Saving file in local server
 const storage = multer.memoryStorage();
-const upload = multer({ storage });
-// const upload = multer({ dest: 'uploads/' });
+// const upload = multer({ storage });
+const upload = multer({ dest: 'uploads/' });
 
 // ROUTES
 router.post('/mergeing', upload.array('pdfFiles') , Pdfmeging);
@@ -18,10 +18,11 @@ router.post('/watermarking', upload.fields([{ name: 'pdfFile', maxCount: 1 }, { 
 router.post('/html-to-pdf', htmlToPDF);
 router.post('/jpg-to-pdf', upload.array('images'), jpgToPdfController);
 router.post('/pdf-to-jpg', upload.single('pdf'), pdfToJpgController);
-// router.post('/pdfprotection',  upload.single('pdfFile'), protectPDF);
+// router.post('/pdfprotection', upload.single('pdfFile'), protectPDF);
 // router.post('/convertToWord', upload.single('pdfFile'), convertToWord);
 // router.post('/scan-to-pdf', scanToPDF);
 router.post('/add-page-numbers', upload.single('pdfFile'), addPageNumbers);
+router.post('/rotate-pdf', upload.single('pdfFile'), rotatePdf);
 
 module.exports = router;
 
@@ -325,5 +326,32 @@ async function addPageNumbers(req, res) {
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Failed to add page numbers to PDF' });
+  }
+}
+
+
+async function rotatePdf(req, res) {
+  try {
+    const { file } = req;
+    const { degrees } = req.body;
+    // console.log(parseInt(degrees))
+    const degress = parseInt(degrees)
+    const rotatedPdfBuffer = await pdfSevices.rotatePdf(file, degress);
+
+    // Generate a unique filename for the rotated PDF
+    const timestamp = Date.now();
+    const outputFilePath = path.join('uploads', `rotated_${timestamp}.pdf`);
+
+    // Write the rotated PDF to the uploads folder
+    fs.writeFileSync(outputFilePath, rotatedPdfBuffer);
+
+    // Send the file download response
+    res.download(outputFilePath, `rotated_${timestamp}.pdf`, () => {
+      // Remove the file after it has been sent
+      // fs.unlinkSync(outputFilePath);
+    });
+  } catch (error) {
+    console.error(error.message);
+    res.status(500).json({ error: 'Failed to rotate PDF file' });
   }
 }
