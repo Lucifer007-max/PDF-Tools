@@ -269,6 +269,46 @@ async function rotatePdf(file, degres) {
 }
 
 
+// const { PDFDocument } = require('pdf-lib');
+const ExcelJS = require('exceljs');
+const PDFParser = require('pdf-parse');
+const fspromise = require('fs/promises');
+
+const convertPdfToExcel = async (filePath) => {
+  const pdfData = await fspromise.readFile(filePath);
+  const pdfText = await PDFParser(pdfData);
+
+  const workbook = new ExcelJS.Workbook();
+  const worksheet = workbook.addWorksheet('PDF Content');
+
+  const content = pdfText.text;
+  const pages = content.trim().split('\n\n');
+  pages.forEach((pageContent, index) => {
+    const sheetName = `Page ${index + 1}`;
+    const sheet = workbook.addWorksheet(sheetName);
+    // sheet.addDataValidation({
+    //   type: 'list',
+    //   showDropDown: true,
+    //   formula1: `'${sheetName}'!$A$1:$Z$1`,
+    // });
+
+    const rows = pageContent.trim().split('\n');
+    rows.forEach((row, rowIndex) => {
+      const columns = row.split('\t');
+      columns.forEach((cellValue, colIndex) => {
+        const cell = sheet.getCell(rowIndex + 1, colIndex + 1);
+        cell.value = cellValue;
+      });
+    });
+  });
+
+  const excelFilePath = 'output.xlsx';
+  await workbook.xlsx.writeFile(excelFilePath);
+
+  return excelFilePath;
+};
+
+
 
 module.exports = { 
   mergePDFs,
@@ -281,5 +321,6 @@ module.exports = {
   generatePDF,
   convertToPDF,
   addPageNumbersToPDF,
-  rotatePdf
+  rotatePdf,
+  convertPdfToExcel
 };

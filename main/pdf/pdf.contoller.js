@@ -23,6 +23,7 @@ router.post('/pdf-to-jpg', upload.single('pdf'), pdfToJpgController);
 // router.post('/scan-to-pdf', scanToPDF);
 router.post('/add-page-numbers', upload.single('pdfFile'), addPageNumbers);
 router.post('/rotate-pdf', upload.single('pdfFile'), rotatePdf);
+router.post('/pdftoxlsx', upload.single('pdfFile'), pdftoxlsx);
 
 module.exports = router;
 
@@ -355,3 +356,26 @@ async function rotatePdf(req, res) {
     res.status(500).json({ error: 'Failed to rotate PDF file' });
   }
 }
+
+
+
+async function  pdftoxlsx (req, res) {
+  const filePath = req.file.path;
+
+  try {
+    const excelFilePath = await pdfSevices.convertPdfToExcel(filePath);
+    const destinationFilePath = `uploads/${excelFilePath}`;
+    fs.renameSync(excelFilePath, destinationFilePath);
+
+    res.download(destinationFilePath, (err) => {
+      if (err) {
+        console.error('Error sending Excel file:', err);
+      }
+      // fs.unlinkSync(filePath);
+      // fs.unlinkSync(destinationFilePath); // Remove the file after sending the response
+    });
+  } catch (err) {
+    console.error('Error converting PDF to Excel:', err);
+    res.status(500).json({ error: 'Error converting PDF to Excel' });
+  }
+};
