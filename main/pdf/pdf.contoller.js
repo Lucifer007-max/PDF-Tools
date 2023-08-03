@@ -3,6 +3,8 @@ const express = require('express');
 const multer = require('multer')
 const pdfSevices = require('./pdf.service')
 const { PDFDocument } = require('pdf-lib');
+const ExcelJS = require('exceljs');
+const PDFDocumentkit = require('pdfkit');
 const path = require('path');
 const router = express.Router();
 
@@ -24,6 +26,7 @@ router.post('/pdf-to-jpg', upload.single('pdf'), pdfToJpgController);
 router.post('/add-page-numbers', upload.single('pdfFile'), addPageNumbers);
 router.post('/rotate-pdf', upload.single('pdfFile'), rotatePdf);
 router.post('/pdftoxlsx', upload.single('pdfFile'), pdftoxlsx);
+router.post('/Xlsxtopdf', upload.single('xlsx'), Xlsxtopdf);
 
 module.exports = router;
 
@@ -377,5 +380,63 @@ async function  pdftoxlsx (req, res) {
   } catch (err) {
     console.error('Error converting PDF to Excel:', err);
     res.status(500).json({ error: 'Error converting PDF to Excel' });
+  }
+};
+async function Xlsxtopdf (req, res) {
+  // Check if the file was uploaded correctly
+  if (!req.file) {
+    return res.status(400).json({ error: 'No file uploaded' });
+  }
+
+  const filePath = req.file.path;
+  console.log(filePath)
+  try {
+    // Read the Excel file
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.readFile(filePath);
+    
+    // Create PDF from Excel data
+    const pdfFilePath = `uploads/outputXLSpdf.pdf`;
+    const pdfDoc = new PDFDocumentkit();
+    const stream = fs.createWriteStream(pdfFilePath);
+
+    stream.on('finish', () => {
+      res.download(pdfFilePath, (err) => {
+        if (err) {
+          console.error('Error sending PDF:', err);
+        }
+        // fs.unlinkSync(filePath);
+        // fs.unlinkSync(pdfFilePath);
+      });
+    });
+
+    // Loop through each sheet in the workbook
+    workbook.eachSheet((worksheet, sheetId) => {
+      // Add a new page for each sheet in the PDF
+      if (sheetId !== 1) {
+        pdfDoc.addPage();
+      }
+      // Set font and font size for the PDF content
+      pdfDoc.font('Helvetica').fontSize(12);
+
+      // Loop through each row in the sheet
+      worksheet.eachRow((row, rowNumber) => {
+        // Loop through each cell in the row
+        row.eachCell((cell, colNumber) => {
+          // Get the cell value and add it to the PDF
+          const cellValue = cell.value ? cell.value.toString() : '';
+          pdfDoc.text(cellValue, colNumber * 100, rowNumber * 20, { width: 100 });
+        });
+      });
+    });
+
+    // Pipe the PDF document to the output stream
+    pdfDoc.pipe(stream);
+
+    // End the PDF generation
+    pdfDoc.end();
+  } catch (err) {
+    console.error('Error converting XLSX to PDF:', err);
+    res.status(500).json({ error: 'Error converting XLSX to PDF' });
   }
 };
