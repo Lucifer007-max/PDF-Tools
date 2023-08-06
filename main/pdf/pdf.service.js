@@ -3,19 +3,26 @@ const fs = require('fs');
 const puppeteer = require('puppeteer');
 const path = require('path');
 const pdfImgConvert = require('pdf-img-convert');
+const { StandardFonts } = require('pdf-lib');
+const PdfParse = require('pdf-parse');
+const ExcelJS = require('exceljs');
+const PDFParser = require('pdf-parse');
+const fspromise = require('fs/promises');
+const { degrees } = require('pdf-lib');
 
 async function mergePDFs(pdfFiles) {
-    const mergedPdf = await PDFDocument.create();
-  
-    for (const file of pdfFiles) {
-      const pdfBytes = await fs.promises.readFile(file.path);
-      const pdfDoc = await PDFDocument.load(pdfBytes);
-  
-      const pages = await mergedPdf.copyPages(pdfDoc, pdfDoc.getPageIndices());
-      pages.forEach((page) => mergedPdf.addPage(page));
-    }
-    return mergedPdf;
+  const mergedPdf = await PDFDocument.create();
+
+  for (const file of pdfFiles) {
+    const pdfBytes = await fs.promises.readFile(file.path);
+    const pdfDoc = await PDFDocument.load(pdfBytes);
+
+    const pages = await mergedPdf.copyPages(pdfDoc, pdfDoc.getPageIndices());
+    pages.forEach((page) => mergedPdf.addPage(page));
+  }
+  return mergedPdf;
 };
+
 async function splitPDF(pdfBuffer, pageNumbers) {
   const pdfDoc = await PDFDocument.load(pdfBuffer);
   const outputFolder = path.join('uploads');
@@ -44,6 +51,7 @@ async function splitPDF(pdfBuffer, pageNumbers) {
 
   return outputFilePaths;
 };
+
 async function convertHTMLToPDF(html, outputFolderPath) {
   try {
     if (!html) {
@@ -84,7 +92,6 @@ async function convertHTMLToPDF(html, outputFolderPath) {
   }
 };
 
-
 async function convertPDFToJPG(pdfBuffer) {
   try {
     // Convert the PDF buffer to JPG
@@ -101,6 +108,7 @@ async function convertPDFToJPG(pdfBuffer) {
     throw new Error('Failed to convert PDF to JPG');
   }
 };
+
 async function convertToPDF(imageFiles) {
   try {
     const pdfDoc = await PDFDocument.create();
@@ -127,64 +135,50 @@ async function convertToPDF(imageFiles) {
   }
 };
 
+async function addPageNumbersToPDF(pdfBuffer) {
+  try {
+    // Load the PDF document
+    const pdfDoc = await PDFDocument.load(pdfBuffer);
 
+    // Get the number of pages in the PDF document
+    const pageCount = pdfDoc.getPageCount();
 
+    // Set the font for the page numbers
+    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
 
-// const fs = require('fs');
-const { StandardFonts } = require('pdf-lib');
+    // Add page numbers to each page of the document
+    for (let i = 0; i < pageCount; i++) {
+      const page = pdfDoc.getPage(i);
 
-// class PDFService {
-  async function  addPageNumbersToPDF(pdfBuffer) {
-    try {
-      // Load the PDF document
-      const pdfDoc = await PDFDocument.load(pdfBuffer);
+      const { width, height } = page.getSize();
+      const fontSize = 12;
+      const text = `Page ${i + 1} of ${pageCount}`;
+      const textWidth = font.widthOfTextAtSize(text, fontSize);
+      const x = (width - textWidth) / 2;
+      const y = 50;
 
-      // Get the number of pages in the PDF document
-      const pageCount = pdfDoc.getPageCount();
-
-      // Set the font for the page numbers
-      const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
-
-      // Add page numbers to each page of the document
-      for (let i = 0; i < pageCount; i++) {
-        const page = pdfDoc.getPage(i);
-
-        const { width, height } = page.getSize();
-        const fontSize = 12;
-        const text = `Page ${i + 1} of ${pageCount}`;
-        const textWidth = font.widthOfTextAtSize(text, fontSize);
-        const x = (width - textWidth) / 2;
-        const y = 50;
-
-        page.drawText(text, { x, y, size: fontSize, font });
-      }
-
-      // Save the modified PDF to a new buffer
-      const modifiedPdfBuffer = await pdfDoc.save();
-
-      return modifiedPdfBuffer;
-    } catch (error) {
-      console.error(error);
-      throw new Error('Failed to add page numbers to PDF');
+      page.drawText(text, { x, y, size: fontSize, font });
     }
+
+    // Save the modified PDF to a new buffer
+    const modifiedPdfBuffer = await pdfDoc.save();
+
+    return modifiedPdfBuffer;
+  } catch (error) {
+    console.error(error);
+    throw new Error('Failed to add page numbers to PDF');
   }
+}
 
- function  deleteFile(filePath) {
-    try {
-      fs.unlinkSync(filePath);
-    } catch (error) {
-      console.error(error);
-    }
+function deleteFile(filePath) {
+  try {
+    fs.unlinkSync(filePath);
+  } catch (error) {
+    console.error(error);
   }
-// }
+}
 
-// module.exports = PDFService;
-
-
-
-
-const PdfParse = require('pdf-parse');
-async function convertToWord (pdfFile)  {
+async function convertToWord(pdfFile) {
   try {
     const pdfData = await fs.promises.readFile(pdfFile.path);
 
@@ -199,8 +193,9 @@ async function convertToWord (pdfFile)  {
     throw new Error('Failed to convert PDF to Word');
   }
 };
+
 const NodeWebcam = require('node-webcam');
-async function generatePDF () {
+async function generatePDF() {
   try {
     // Set up the webcam
     const Webcam = NodeWebcam.create();
@@ -227,10 +222,11 @@ async function generatePDF () {
     return pdfBytes;
   } catch (error) {
     // console.error(error);
-    console.log(">>" ,  error)
+    console.log(">>", error)
     throw new Error('Failed to generate PDF');
   }
 };
+
 function captureImage(Webcam, options) {
   return new Promise((resolve, reject) => {
     Webcam.capture('', (err, data) => {
@@ -243,7 +239,6 @@ function captureImage(Webcam, options) {
   });
 };
 
-const {degrees} = require('pdf-lib');
 async function rotatePdf(file, degres) {
   try {
     // Read the PDF file
@@ -267,12 +262,6 @@ async function rotatePdf(file, degres) {
     throw new Error('Failed to rotate PDF file');
   }
 }
-
-
-// const { PDFDocument } = require('pdf-lib');
-const ExcelJS = require('exceljs');
-const PDFParser = require('pdf-parse');
-const fspromise = require('fs/promises');
 
 const convertPdfToExcel = async (filePath) => {
   const pdfData = await fspromise.readFile(filePath);
@@ -307,9 +296,6 @@ const convertPdfToExcel = async (filePath) => {
 
   return excelFilePath;
 };
-
-// const fs = require('fs');
-// const PDFParser = require('pdf-parse');
 
 async function convertPdfToText(filePath) {
   try {
@@ -351,7 +337,7 @@ async function deletePages(filePath, pagesToDelete) {
   }
 }
 
-module.exports = { 
+module.exports = {
   mergePDFs,
   splitPDF,
   convertHTMLToPDF,

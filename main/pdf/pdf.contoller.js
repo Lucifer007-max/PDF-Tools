@@ -8,6 +8,7 @@ const PDFDocumentkit = require('pdfkit');
 const puppeteer = require('puppeteer-core');
 const path = require('path');
 const router = express.Router();
+const { pdfToJpg } = require('pdf-poppler');
 
 // Saving file in local server
 const storage = multer.memoryStorage();
@@ -15,9 +16,9 @@ const storage = multer.memoryStorage();
 const upload = multer({ dest: 'uploads/' });
 
 // ROUTES
-router.post('/mergeing', upload.array('pdfFiles') , Pdfmeging);
+router.post('/mergeing', upload.array('pdfFiles'), Pdfmeging);
 router.post('/spliting', upload.single('pdfFile'), Pdfspliting);
-router.post('/watermarking', upload.fields([{ name: 'pdfFile', maxCount: 1 }, { name: 'imageFile', maxCount: 1 }]) , Pdfwatermarking);
+router.post('/watermarking', upload.fields([{ name: 'pdfFile', maxCount: 1 }, { name: 'imageFile', maxCount: 1 }]), Pdfwatermarking);
 router.post('/html-to-pdf', htmlToPDF);
 router.post('/jpg-to-pdf', upload.array('images'), jpgToPdfController);
 router.post('/pdf-to-jpg', upload.single('pdf'), pdfToJpgController);
@@ -37,138 +38,129 @@ module.exports = router;
 
 // Merging PDF
 async function Pdfmeging(req, res) {
-    try {
-        const mergedPdf = await pdfSevices.mergePDFs(req.files);
-        const outputPath = 'uploads/merged.pdf';
-        
-        await fs.promises.writeFile(outputPath, await mergedPdf.save());
-        
-        res.setHeader('Content-Type', 'application/pdf');
-        res.setHeader('Content-Disposition', 'attachment; filename="merged.pdf"');
-        res.sendFile(outputPath, { root: __dirname });
+  try {
+    const mergedPdf = await pdfSevices.mergePDFs(req.files);
+    const outputPath = 'uploads/merged.pdf';
+
+    await fs.promises.writeFile(outputPath, await mergedPdf.save());
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'attachment; filename="merged.pdf"');
+    res.sendFile(outputPath, { root: __dirname });
 
 
-        res.status(200).json({ msg: "PDF merge successfullt" });
-    } catch (error) {
-        console.error('Failed to merge PDFs:', error);
-        res.status(500).send('Failed to merge PDFs');
-    }
+    res.status(200).json({ msg: "PDF merge successfullt" });
+  } catch (error) {
+    console.error('Failed to merge PDFs:', error);
+    res.status(500).send('Failed to merge PDFs');
+  }
 }
 // Spliting PDF
-async function Pdfspliting (req, res) {
-    try {
-      const pdfBuffer = req.file.buffer;
-      const pageNumbers = req.body.pageNumbers;
-  
-      const outputFilePaths = await pdfSevices.splitPDF(pdfBuffer, pageNumbers);
-        
-      res.json({ files: outputFilePaths });
-    } catch (error) {
-      console.error('Failed to split PDF:', error);
-      res.status(500).json({ error: 'Failed to split PDF' });
-    }
+async function Pdfspliting(req, res) {
+  try {
+    const pdfBuffer = req.file.buffer;
+    const pageNumbers = req.body.pageNumbers;
+
+    const outputFilePaths = await pdfSevices.splitPDF(pdfBuffer, pageNumbers);
+
+    res.json({ files: outputFilePaths });
+  } catch (error) {
+    console.error('Failed to split PDF:', error);
+    res.status(500).json({ error: 'Failed to split PDF' });
+  }
 };
 // Watermark PDF
 async function Pdfwatermarking(req, res) {
-    try {
-        const pdfFile = req.files['pdfFile'][0];
-        const imageFile = req.files['imageFile'][0];
-        console.log(pdfFile)
-        // Read the PDF file and image
-        const pdfBuffer = pdfFile.buffer;
-        const imageBuffer = imageFile.buffer;
-    
-        // Load the PDF document
-        const pdfDoc = await PDFDocument.load(pdfBuffer);
-    
-        // Embed the image
-        const image = await pdfDoc.embedPng(imageBuffer);
-    
-        // Add watermark to each page of the document
-        const pages = pdfDoc.getPages();
-        for (const page of pages) {
-          const { width, height } = page.getSize();
-          const imageWidth = width * 0.5; // Set the image width to half the page width
-          const imageHeight = (imageWidth * image.height) / image.width;
-          const x = (width - imageWidth) / 2;
-          const y = (height - imageHeight) / 2;
-    
-          // Draw the image on the page
-          page.drawImage(image, {
-            x,
-            y,
-            width: imageWidth,
-            height: imageHeight,
-          });
-        }
-    
-        // Save the watermarked PDF to a new buffer
-        const modifiedPdfBuffer = await pdfDoc.save();
-    
-        // Delete the temporary uploaded files
-        URL.revokeObjectURL(pdfFile.buffer);
-        URL.revokeObjectURL(imageFile.buffer);
-    
-        // Create a folder named 'uploads' if it doesn't exist
-        if (!fs.existsSync('uploads')) {
-          fs.mkdirSync('uploads');
-        }
-    
-        // Generate a unique filename for the watermarked PDF
-        const timestamp = Date.now();
-        const outputFilePath = path.join(__dirname, 'uploads', `watermarked_${timestamp}.pdf`);
-    
-        // Write the watermarked PDF to the uploads folder
-        fs.writeFileSync(outputFilePath, modifiedPdfBuffer);
-    
-        // Set the headers for file download using res.attachment()
-        res.setHeader('Content-Type', 'application/pdf');
-        res.setHeader('Content-Disposition', `watermarked_${timestamp}.pdf`);
-        // res.setHeader('Content-Disposition', 'attachment; filename="merged.pdf"');
-        res.sendFile(outputFilePath, { root: __dirname })
-    
-        // Stream the file for download
-        // const fileStream = fs.createReadStream(outputFilePath);
-        // fileStream.pipe(res);
-    
-        // Remove the file after it has been sent
-        fileStream.on('end', () => {
-          fs.unlinkSync(outputFilePath);
-        });
-      } catch (error) {
-        console.error(error);
-        res.status(500).json({ error: 'Failed to add watermark to PDF' });
-      }
-}
+  try {
+    const pdfFile = req.files['pdfFile'][0];
+    const imageFile = req.files['imageFile'][0];
+    console.log(pdfFile)
+    // Read the PDF file and image
+    const pdfBuffer = pdfFile.buffer;
+    const imageBuffer = imageFile.buffer;
 
+    // Load the PDF document
+    const pdfDoc = await PDFDocument.load(pdfBuffer);
 
-// ============== Converting PDF API'S ================ \\
+    // Embed the image
+    const image = await pdfDoc.embedPng(imageBuffer);
 
-// PDF to HTML
-async function htmlToPDF(req, res) {
-    try {
-      // Assuming you have some HTML content in req.body.html
-      const htmlContent = req.body.html;
-  
-      // Set the desired output folder path
-      const outputFolderPath = path.join('uploads');
-      // Convert HTML to PDF and get the output file path
-      const outputFilePath = await pdfSevices.convertHTMLToPDF(htmlContent, outputFolderPath);
-  
-      // Now you can send the outputFilePath back to the client or use it as needed
-      res.status(200).json({ filePath: outputFilePath });
-    } catch (error) {
-      console.error(error);
-      res.status(500).json({ error: 'Failed to generate PDF' });
+    // Add watermark to each page of the document
+    const pages = pdfDoc.getPages();
+    for (const page of pages) {
+      const { width, height } = page.getSize();
+      const imageWidth = width * 0.5; // Set the image width to half the page width
+      const imageHeight = (imageWidth * image.height) / image.width;
+      const x = (width - imageWidth) / 2;
+      const y = (height - imageHeight) / 2;
+
+      // Draw the image on the page
+      page.drawImage(image, {
+        x,
+        y,
+        width: imageWidth,
+        height: imageHeight,
+      });
     }
+
+    // Save the watermarked PDF to a new buffer
+    const modifiedPdfBuffer = await pdfDoc.save();
+
+    // Delete the temporary uploaded files
+    URL.revokeObjectURL(pdfFile.buffer);
+    URL.revokeObjectURL(imageFile.buffer);
+
+    // Create a folder named 'uploads' if it doesn't exist
+    if (!fs.existsSync('uploads')) {
+      fs.mkdirSync('uploads');
+    }
+
+    // Generate a unique filename for the watermarked PDF
+    const timestamp = Date.now();
+    const outputFilePath = path.join(__dirname, 'uploads', `watermarked_${timestamp}.pdf`);
+
+    // Write the watermarked PDF to the uploads folder
+    fs.writeFileSync(outputFilePath, modifiedPdfBuffer);
+
+    // Set the headers for file download using res.attachment()
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `watermarked_${timestamp}.pdf`);
+    // res.setHeader('Content-Disposition', 'attachment; filename="merged.pdf"');
+    res.sendFile(outputFilePath, { root: __dirname })
+
+    // Stream the file for download
+    // const fileStream = fs.createReadStream(outputFilePath);
+    // fileStream.pipe(res);
+
+    // Remove the file after it has been sent
+    fileStream.on('end', () => {
+      fs.unlinkSync(outputFilePath);
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Failed to add watermark to PDF' });
+  }
 }
 
+async function htmlToPDF(req, res) {
+  try {
+    // Assuming you have some HTML content in req.body.html
+    const htmlContent = req.body.html;
 
+    // Set the desired output folder path
+    const outputFolderPath = path.join('uploads');
+    // Convert HTML to PDF and get the output file path
+    const outputFilePath = await pdfSevices.convertHTMLToPDF(htmlContent, outputFolderPath);
 
-const { pdfToJpg } = require('pdf-poppler');
+    // Now you can send the outputFilePath back to the client or use it as needed
+    res.status(200).json({ filePath: outputFilePath });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Failed to generate PDF' });
+  }
+}
 
-
-async function pdfToJpgController (req, res) {
+async function pdfToJpgController(req, res) {
   try {
     const pdfFilePath = req.file.path;
     const outputFolder = path.join(__dirname, 'uploads');
@@ -195,71 +187,67 @@ async function pdfToJpgController (req, res) {
   }
 };
 
+async function jpgToPdfController(req, res) {
+  try {
+    const pdfBytes = await pdfSevices.convertToPDF(req.files);
 
+    const outputFilePath = path.join('uploads', 'output.pdf');
+    fs.writeFileSync(outputFilePath, pdfBytes);
 
-// JPG to PDF
-async function jpgToPdfController (req, res){
-    try {
-      const pdfBytes = await pdfSevices.convertToPDF(req.files);
-  
-      const outputFilePath = path.join('uploads', 'output.pdf');
-      fs.writeFileSync(outputFilePath, pdfBytes);
-  
-      res.download(outputFilePath, 'output.pdf', (err) => {
-        if (err) {
-          console.error('Error while sending the PDF:', err);
-        }
-        fs.unlinkSync(outputFilePath); // Remove the temporary PDF file after sending
-      });
-    } catch (error) {
-      console.error('Failed to convert JPG to PDF:', error);
-      res.status(500).send('Failed to convert JPG to PDF.');
-    }
+    res.download(outputFilePath, 'output.pdf', (err) => {
+      if (err) {
+        console.error('Error while sending the PDF:', err);
+      }
+      fs.unlinkSync(outputFilePath); // Remove the temporary PDF file after sending
+    });
+  } catch (error) {
+    console.error('Failed to convert JPG to PDF:', error);
+    res.status(500).send('Failed to convert JPG to PDF.');
+  }
 };
 
-
-
 async function protectPDF(req, res) {
-    try {
-        const pdfFile = req.file;
-        const password = req.body.password;
-    
-        if (!pdfFile || !password) {
-          return res.status(400).json({ error: 'PDF file and password are required' });
-        }
-    
-        const protectedPdfBuffer = await pdfSevices.protectPDFWithPassword(pdfFile.buffer, password);
-    
-        // Create a folder named 'uploads' if it doesn't exist
-        if (!fs.existsSync('uploads')) {
-          fs.mkdirSync('uploads');
-        }
-    
-        // Generate a unique filename for the protected PDF
-        const timestamp = Date.now();
-        const outputFilePath = path.join(__dirname, '..', 'uploads', `protected_${timestamp}.pdf`);
-    
-        // Write the protected PDF to the uploads folder
-        fs.writeFileSync(outputFilePath, protectedPdfBuffer);
-    
-        // Set the headers for file download using res.attachment()
-        res.setHeader('Content-Type', 'application/pdf');
-        res.setHeader('Content-Disposition', `attachment; filename="protected_${timestamp}.pdf"`);
-    
-        // Stream the protected PDF for download
-        const fileStream = fs.createReadStream(outputFilePath);
-        fileStream.pipe(res);
-    
-        // Remove the file after it has been sent
-        fileStream.on('end', () => {
-          fs.unlinkSync(outputFilePath);
-        });
-      } catch (error) {
-        console.error(error);
-        res.status(500).json({ error: 'Failed to protect PDF' });
-      }
+  try {
+    const pdfFile = req.file;
+    const password = req.body.password;
+
+    if (!pdfFile || !password) {
+      return res.status(400).json({ error: 'PDF file and password are required' });
+    }
+
+    const protectedPdfBuffer = await pdfSevices.protectPDFWithPassword(pdfFile.buffer, password);
+
+    // Create a folder named 'uploads' if it doesn't exist
+    if (!fs.existsSync('uploads')) {
+      fs.mkdirSync('uploads');
+    }
+
+    // Generate a unique filename for the protected PDF
+    const timestamp = Date.now();
+    const outputFilePath = path.join(__dirname, '..', 'uploads', `protected_${timestamp}.pdf`);
+
+    // Write the protected PDF to the uploads folder
+    fs.writeFileSync(outputFilePath, protectedPdfBuffer);
+
+    // Set the headers for file download using res.attachment()
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="protected_${timestamp}.pdf"`);
+
+    // Stream the protected PDF for download
+    const fileStream = fs.createReadStream(outputFilePath);
+    fileStream.pipe(res);
+
+    // Remove the file after it has been sent
+    fileStream.on('end', () => {
+      fs.unlinkSync(outputFilePath);
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Failed to protect PDF' });
+  }
 }
-async function convertToWord (req, res) {
+
+async function convertToWord(req, res) {
   try {
     const pdfFile = req.file;
     console.log(pdfFile)
@@ -275,22 +263,23 @@ async function convertToWord (req, res) {
     res.status(500).json({ error: 'Failed to convert PDF to Word' });
   }
 };
-async function scanToPDF (req, res) {
-    try {
-      const outputPath = await pdfSevices.generatePDF();
-      // Provide the generated PDF file for download
-      res.download(outputPath, 'scanned.pdf', (err) => {
-        if (err) {
-          console.error(">>>>" , err);
-          res.status(500).json({ error: 'Failed to download the scanned PDF file' });
-        }
-      });
-    } catch (error) {
-      console.error(error);
-      res.status(500).json({ error: 'Failed to create scanned PDF' });
-    }
+
+async function scanToPDF(req, res) {
+  try {
+    const outputPath = await pdfSevices.generatePDF();
+    // Provide the generated PDF file for download
+    res.download(outputPath, 'scanned.pdf', (err) => {
+      if (err) {
+        console.error(">>>>", err);
+        res.status(500).json({ error: 'Failed to download the scanned PDF file' });
+      }
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Failed to create scanned PDF' });
+  }
 };
-  
+
 async function addPageNumbers(req, res) {
   try {
     const { file } = req;
@@ -352,7 +341,7 @@ async function rotatePdf(req, res) {
   }
 };
 
-async function  pdftoxlsx (req, res) {
+async function pdftoxlsx(req, res) {
   const filePath = req.file.path;
 
   try {
@@ -373,7 +362,7 @@ async function  pdftoxlsx (req, res) {
   }
 };
 
-async function Xlsxtopdf (req, res) {
+async function Xlsxtopdf(req, res) {
   if (!req.file) {
     return res.status(400).json({ error: 'No file uploaded' });
   }
@@ -384,7 +373,7 @@ async function Xlsxtopdf (req, res) {
     // Read the Excel file
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.readFile(filePath);
-    
+
     // Create PDF from Excel data
     const pdfFilePath = `uploads/outputXLSpdf.pdf`;
     const pdfDoc = new PDFDocumentkit();
@@ -431,7 +420,7 @@ async function Xlsxtopdf (req, res) {
   }
 };
 
-async function urltoPDF (req, res){
+async function urltoPDF(req, res) {
   const url = req.query.url;
 
   if (!url) {
@@ -444,7 +433,7 @@ async function urltoPDF (req, res){
 
     await page.goto(url, { waitUntil: 'networkidle0' });
 
-    const pdfFilePath = path.resolve(__dirname, 'uploads','output.pdf');
+    const pdfFilePath = path.resolve(__dirname, 'uploads', 'output.pdf');
 
     await page.pdf({ path: pdfFilePath, format: 'A4', printBackground: true });
 
