@@ -308,19 +308,36 @@ const convertPdfToExcel = async (filePath) => {
   return excelFilePath;
 };
 
+// const fs = require('fs');
+// const PDFParser = require('pdf-parse');
+
+async function convertPdfToText(filePath) {
+  try {
+    // Read the PDF file as a Uint8Array
+    const pdfData = new Uint8Array(await fs.promises.readFile(filePath));
+
+    // Parse the PDF to extract text
+    const pdfText = await PDFParser(pdfData);
+
+    // Extracted text from the PDF
+    return pdfText.text;
+  } catch (err) {
+    console.error('Error converting PDF to text:', err);
+    throw new Error('Error converting PDF to text');
+  }
+}
 
 
 module.exports = { 
   mergePDFs,
   splitPDF,
-  // watermarkPDF,
   convertHTMLToPDF,
   // protectPDFWithPassword,
-  // convertPDFToJPG,
   // convertToWord,
   generatePDF,
   convertToPDF,
   addPageNumbersToPDF,
   rotatePdf,
-  convertPdfToExcel
+  convertPdfToExcel,
+  convertPdfToText
 };

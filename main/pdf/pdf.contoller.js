@@ -5,6 +5,7 @@ const pdfSevices = require('./pdf.service')
 const { PDFDocument } = require('pdf-lib');
 const ExcelJS = require('exceljs');
 const PDFDocumentkit = require('pdfkit');
+const puppeteer = require('puppeteer-core');
 const path = require('path');
 const router = express.Router();
 
@@ -27,6 +28,8 @@ router.post('/add-page-numbers', upload.single('pdfFile'), addPageNumbers);
 router.post('/rotate-pdf', upload.single('pdfFile'), rotatePdf);
 router.post('/pdftoxlsx', upload.single('pdfFile'), pdftoxlsx);
 router.post('/Xlsxtopdf', upload.single('xlsx'), Xlsxtopdf);
+router.post('/PdfToText', upload.single('pdfFile'), convertPdfToText);
+router.get('/urltoPDF', urltoPDF);
 
 module.exports = router;
 
@@ -296,8 +299,6 @@ async function scanToPDF (req, res) {
     }
 };
   
-
-
 async function addPageNumbers(req, res) {
   try {
     const { file } = req;
@@ -331,8 +332,7 @@ async function addPageNumbers(req, res) {
     console.error(error);
     res.status(500).json({ error: 'Failed to add page numbers to PDF' });
   }
-}
-
+};
 
 async function rotatePdf(req, res) {
   try {
@@ -358,9 +358,7 @@ async function rotatePdf(req, res) {
     console.error(error.message);
     res.status(500).json({ error: 'Failed to rotate PDF file' });
   }
-}
-
-
+};
 
 async function  pdftoxlsx (req, res) {
   const filePath = req.file.path;
@@ -382,8 +380,8 @@ async function  pdftoxlsx (req, res) {
     res.status(500).json({ error: 'Error converting PDF to Excel' });
   }
 };
+
 async function Xlsxtopdf (req, res) {
-  // Check if the file was uploaded correctly
   if (!req.file) {
     return res.status(400).json({ error: 'No file uploaded' });
   }
@@ -440,3 +438,53 @@ async function Xlsxtopdf (req, res) {
     res.status(500).json({ error: 'Error converting XLSX to PDF' });
   }
 };
+
+async function urltoPDF (req, res){
+  const url = req.query.url;
+
+  if (!url) {
+    return res.status(400).json({ error: 'URL parameter is missing' });
+  }
+
+  try {
+    const browser = await puppeteer.launch({ executablePath: chromePath, headless: true });
+    const page = await browser.newPage();
+
+    await page.goto(url, { waitUntil: 'networkidle0' });
+
+    const pdfFilePath = path.resolve(__dirname, 'uploads','output.pdf');
+
+    await page.pdf({ path: pdfFilePath, format: 'A4', printBackground: true });
+
+    await browser.close();
+
+    res.download(pdfFilePath, (err) => {
+      if (err) {
+        console.error('Error sending PDF:', err);
+      }
+      // fs.unlinkSync(pdfFilePath);
+    });
+  } catch (err) {
+    console.error('Error converting URL to PDF:', err);
+    res.status(500).json({ error: 'Error converting URL to PDF' });
+  }
+};
+
+async function convertPdfToText(req, res) {
+  try {
+    // Check if the file was uploaded correctly
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file uploaded' });
+    }
+
+    const filePath = req.file.path;
+    const text = await pdfSevices.convertPdfToText(filePath);
+
+    res.status(200).json({ text });
+  } catch (err) {
+    console.error('Error converting PDF to text:', err);
+    res.status(500).json({ error: 'Error converting PDF to text' });
+  } finally {
+    fs.unlinkSync(filePath);
+  }
+}
