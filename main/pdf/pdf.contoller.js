@@ -29,6 +29,7 @@ router.post('/rotate-pdf', upload.single('pdfFile'), rotatePdf);
 router.post('/pdftoxlsx', upload.single('pdfFile'), pdftoxlsx);
 router.post('/Xlsxtopdf', upload.single('xlsx'), Xlsxtopdf);
 router.post('/PdfToText', upload.single('pdfFile'), convertPdfToText);
+router.post('/delete-pages', upload.single('pdfFile'), deletePages);
 router.get('/urltoPDF', urltoPDF);
 
 module.exports = router;
@@ -193,15 +194,6 @@ async function pdfToJpgController (req, res) {
     res.status(500).json({ error: 'Failed to convert PDF to JPG' });
   }
 };
-
-
-
-
-
-
-
-
-
 
 
 
@@ -486,5 +478,37 @@ async function convertPdfToText(req, res) {
     res.status(500).json({ error: 'Error converting PDF to text' });
   } finally {
     fs.unlinkSync(filePath);
+  }
+}
+
+async function deletePages(req, res) {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file uploaded' });
+    }
+
+    const filePath = req.file.path;
+    const pagesToDeletes = req.body.pages;
+    const pagesToDelete = JSON.parse(pagesToDeletes)
+
+    if (!pagesToDelete || !Array.isArray(pagesToDelete) || pagesToDelete.length === 0) {
+      return res.status(400).json({ error: 'Pages parameter is missing or invalid' });
+    }
+
+    const modifiedPdfBytes = await pdfSevices.deletePages(filePath, pagesToDelete);
+
+    const pdfFilePath = path.resolve('uploads', 'modified.pdf');
+    await fs.promises.writeFile(pdfFilePath, modifiedPdfBytes);
+
+    res.download(pdfFilePath, (err) => {
+      if (err) {
+        console.error('Error sending PDF:', err);
+      }
+      // fs.unlinkSync(filePath);
+      // fs.unlinkSync(pdfFilePath);
+    });
+  } catch (err) {
+    console.error('Error deleting pages from PDF:', err);
+    res.status(500).json({ error: 'Error deleting pages from PDF' });
   }
 }

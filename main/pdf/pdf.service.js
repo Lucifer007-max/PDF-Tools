@@ -327,6 +327,29 @@ async function convertPdfToText(filePath) {
   }
 }
 
+async function deletePages(filePath, pagesToDelete) {
+  try {
+    // Read the PDF file as a Uint8Array
+    const pdfData = new Uint8Array(await fs.promises.readFile(filePath));
+
+    // Load the PDF using pdf-lib
+    const pdfDoc = await PDFDocument.load(pdfData);
+
+    // Delete the specified pages
+    pagesToDelete.sort((a, b) => b - a); // Sort pages in descending order for correct deletion
+    for (const pageNumber of pagesToDelete) {
+      pdfDoc.removePage(pageNumber - 1); // Pages are 0-indexed in pdf-lib
+    }
+
+    // Save the modified PDF to a new buffer
+    const pdfBytes = await pdfDoc.save();
+
+    return pdfBytes;
+  } catch (err) {
+    console.error('Error deleting pages from PDF:', err);
+    throw new Error('Error deleting pages from PDF');
+  }
+}
 
 module.exports = { 
   mergePDFs,
@@ -339,5 +362,6 @@ module.exports = {
   addPageNumbersToPDF,
   rotatePdf,
   convertPdfToExcel,
-  convertPdfToText
+  convertPdfToText,
+  deletePages
 };
