@@ -32,6 +32,7 @@ router.post('/Xlsxtopdf', upload.single('xlsx'), Xlsxtopdf);
 router.post('/PdfToText', upload.single('pdfFile'), convertPdfToText);
 router.post('/delete-pages', upload.single('pdfFile'), deletePages);
 router.post('/convertPdfToCsv', upload.single('pdfFile'), convertPdfToCsv);
+router.post('/genratePDF',generatePdf);
 router.get('/urltoPDF', urltoPDF);
 
 module.exports = router;
@@ -536,3 +537,27 @@ async function convertPdfToCsv(req, res) {
     res.status(500).json({ error: 'Error converting PDF to CSV' });
   }
 }
+
+
+
+async function generatePdf(req, res) {
+  try {
+    const userText = req.body.text || 'Default Text'; // Get text from request body or use default
+
+    const pdfBytes = await pdfSevices.generatePdfWithText(userText);
+
+    // Save the generated PDF in the uploads folder
+    const pdfFilePath = path.join('uploads', 'generated.pdf');
+    await fs.promises.writeFile(pdfFilePath, pdfBytes);
+
+    // Send the generated PDF as a downloadable response
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'attachment; filename=generated.pdf');
+    res.send(pdfBytes);
+  } catch (err) {
+    console.error('Error generating PDF:', err);
+    res.status(500).json({ error: 'Error generating PDF' });
+  }
+}
+
+

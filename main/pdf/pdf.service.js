@@ -1,4 +1,4 @@
-const { PDFDocument } = require('pdf-lib');
+const { PDFDocument , rgb } = require('pdf-lib');
 const fs = require('fs');
 const puppeteer = require('puppeteer');
 const path = require('path');
@@ -338,13 +338,33 @@ async function deletePages(filePath, pagesToDelete) {
 }
 
 
-// const pdf = require('pdf-parse');
-// const fs = require('fs').promises;
-
 async function extractTextFromPdf(pdfBuffer) {
   const pdfData = await PDFParser(pdfBuffer);
   return pdfData.text;
 }
+
+
+
+// const { PDFDocument, rgb } = require('pdf-lib');
+
+async function generatePdfWithText(userText) {
+  // Create a new PDF document
+  const pdfDoc = await PDFDocument.create();
+
+  // Add a new page
+  const page = pdfDoc.addPage([400, 400]);
+
+  // Draw user-provided text on the page
+  const font = await pdfDoc.embedFont('Helvetica');
+  const fontSize = 24;
+  page.drawText(userText, { x: 50, y: 350, font, fontSize, color: rgb(0, 0, 0) });
+
+  // Save the PDF to a buffer
+  const pdfBytes = await pdfDoc.save();
+
+  return pdfBytes;
+}
+
 
 module.exports = {
   mergePDFs,
@@ -359,5 +379,6 @@ module.exports = {
   convertPdfToExcel,
   convertPdfToText,
   deletePages,
-  extractTextFromPdf
+  extractTextFromPdf,
+  generatePdfWithText
 };
