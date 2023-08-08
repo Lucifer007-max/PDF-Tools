@@ -31,6 +31,7 @@ router.post('/pdftoxlsx', upload.single('pdfFile'), pdftoxlsx);
 router.post('/Xlsxtopdf', upload.single('xlsx'), Xlsxtopdf);
 router.post('/PdfToText', upload.single('pdfFile'), convertPdfToText);
 router.post('/delete-pages', upload.single('pdfFile'), deletePages);
+router.post('/convertPdfToCsv', upload.single('pdfFile'), convertPdfToCsv);
 router.get('/urltoPDF', urltoPDF);
 
 module.exports = router;
@@ -499,5 +500,39 @@ async function deletePages(req, res) {
   } catch (err) {
     console.error('Error deleting pages from PDF:', err);
     res.status(500).json({ error: 'Error deleting pages from PDF' });
+  }
+}
+
+
+async function convertPdfToCsv(req, res) {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file uploaded' });
+    }
+
+    const pdfBuffer = await fs.promises.readFile(req.file.path);
+    const text = await pdfSevices.extractTextFromPdf(pdfBuffer);
+
+    const csvContent = text
+      .split('\n')
+      .map(line => line.trim().split(/\s+/).join(','))
+      .join('\n');
+
+    const csvFilePath = path.join('uploads', 'converted.csv');;
+    console.log(csvFilePath)
+    await fs.promises.writeFile(csvFilePath, csvContent);
+
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', `attachment; filename=converted.csv`);
+    res.sendFile(csvFilePath, (err) => {
+      if (err) {
+        console.error('Error sending CSV file:', err);
+      }
+      fs.unlinkSync(req.file.path);
+      // fs.unlinkSync(csvFilePath);
+    });
+  } catch (err) {
+    console.error('Error converting PDF to CSV:', err);
+    res.status(500).json({ error: 'Error converting PDF to CSV' });
   }
 }

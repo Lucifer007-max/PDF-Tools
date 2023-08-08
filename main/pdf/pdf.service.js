@@ -337,6 +337,15 @@ async function deletePages(filePath, pagesToDelete) {
   }
 }
 
+
+// const pdf = require('pdf-parse');
+// const fs = require('fs').promises;
+
+async function extractTextFromPdf(pdfBuffer) {
+  const pdfData = await PDFParser(pdfBuffer);
+  return pdfData.text;
+}
+
 module.exports = {
   mergePDFs,
   splitPDF,
@@ -349,5 +358,6 @@ module.exports = {
   rotatePdf,
   convertPdfToExcel,
   convertPdfToText,
-  deletePages
+  deletePages,
+  extractTextFromPdf
 };
