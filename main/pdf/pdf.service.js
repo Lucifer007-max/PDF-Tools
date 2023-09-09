@@ -10,7 +10,7 @@ const PDFParser = require('pdf-parse');
 const fspromise = require('fs/promises');
 const { degrees } = require('pdf-lib');
 
-async function mergePDFs(pdfFiles) {
+async function mergePDFs(pdfFiles) {    
   const mergedPdf = await PDFDocument.create();
 
   for (const file of pdfFiles) {

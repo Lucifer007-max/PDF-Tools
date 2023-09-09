@@ -22,8 +22,8 @@ router.post('/watermarking', upload.fields([{ name: 'pdfFile', maxCount: 1 }, { 
 router.post('/html-to-pdf', htmlToPDF);
 router.post('/jpg-to-pdf', upload.array('images'), jpgToPdfController);
 router.post('/pdf-to-jpg', upload.single('pdf'), pdfToJpgController);
-// router.post('/pdfprotection', upload.single('pdfFile'), protectPDF);
-// router.post('/convertToWord', upload.single('pdfFile'), convertToWord);
+router.post('/pdfprotection', upload.single('pdfFile'), protectPDF);
+router.post('/convertToWord', upload.single('pdfFile'), convertToWord);
 // router.post('/scan-to-pdf', scanToPDF);
 router.post('/add-page-numbers', upload.single('pdfFile'), addPageNumbers);
 router.post('/rotate-pdf', upload.single('pdfFile'), rotatePdf);

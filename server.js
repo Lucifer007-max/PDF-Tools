@@ -13,6 +13,7 @@ app.use(cors());
 app.use('/users' , require('./main/users/users.controller'));
 app.use('/admin' , require('./main/admin/admin.controller'))
 app.use('/pdf' , require('./main/pdf/pdf.contoller'))
+app.use('/image' , require('./main/image/image.controller'))
 
 app.use(express.static('uploads'))
 
